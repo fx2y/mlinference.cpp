@@ -31,7 +31,6 @@ public:
 
     void unload() override
     {
-        std::cout << "unload model" << std::endl;
         if (model != nullptr)
         {
             llama_free_model(model);
@@ -39,11 +38,11 @@ public:
         }
     }
 
-    void *getContext() {
+    llama_context *getContext() {
         return ctx;
     }
 
-    void *getModel() {
+    llama_model *getModel() {
         return model;
     }
 

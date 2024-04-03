@@ -31,14 +31,14 @@ public:
             throw std::runtime_error("Failed to load llama model");
         }
 
-        auto ctx = static_cast<llama_context *>(modelLoader_->getContext());
+        auto ctx = modelLoader_->getContext();
         if (ctx == nullptr)
         {
             if (!modelLoader_->initContext())
             {
                 throw std::runtime_error("Failed to create llama context");
             }
-            ctx = static_cast<llama_context *>(modelLoader_->getContext());
+            ctx = modelLoader_->getContext();
         }
 
         // Create a batch for decoding

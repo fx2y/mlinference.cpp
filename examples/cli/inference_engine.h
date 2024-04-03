@@ -14,7 +14,7 @@ public:
     InferenceEngine(const std::string &model_path)
     {
         modelInferer_ = std::make_unique<LlamaInferer>(model_path);
-        inferenceProcessor_ = std::make_unique<LlamaProcessor>(modelInferer_->getModelLoader());
+        inferenceProcessor_ = std::make_unique<LlamaProcessor>(modelInferer_->getModelLoader()->getContext());
     }
     std::string run(const std::string &input)
     {

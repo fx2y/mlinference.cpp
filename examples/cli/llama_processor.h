@@ -8,28 +8,26 @@
 class LlamaProcessor : public InferenceProcessor
 {
 public:
-    LlamaProcessor(GGUFLoader *modelLoader) : modelLoader_(modelLoader) {}
+    LlamaProcessor(llama_context *context) : context_(context) {}
     ~LlamaProcessor() {}
     void *preProcess(const std::string &rawInput) override
     {
         // Pre-process the input data
-        auto ctx = static_cast<llama_context *>(modelLoader_->getContext());
-        auto output = std::make_unique<decltype(llama_tokenize(ctx, rawInput, true))>(llama_tokenize(ctx, rawInput, true));
+        auto output = std::make_unique<decltype(llama_tokenize(context_, rawInput, true))>(llama_tokenize(context_, rawInput, true));
         return output.release();
     }
     std::string postProcess(const void *modelOutput) override
     {
         // Post-process the model output
-        auto ctx = static_cast<llama_context *>(modelLoader_->getContext());
         auto outputTokens = static_cast<const std::vector<llama_token> *>(modelOutput);
         std::string generatedText;
         for (size_t i = 0; i < outputTokens->size(); i++)
         {
-            generatedText += llama_token_to_piece(ctx, (*outputTokens)[i]);
+            generatedText += llama_token_to_piece(context_, (*outputTokens)[i]);
         }
         return generatedText;
     }
 
 private:
-    std::unique_ptr<GGUFLoader> modelLoader_;
+    llama_context *context_;
 };
