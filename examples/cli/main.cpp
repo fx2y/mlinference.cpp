@@ -8,6 +8,8 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 
+#include "inference_engine.h"
+
 std::string infer(const std::vector<uint8_t> &image_data)
 {
     // Decode the image data
@@ -23,69 +25,6 @@ std::string infer(const std::vector<uint8_t> &image_data)
 
     stbi_image_free(img);
     return result;
-}
-
-std::string generateText(llama_context *ctx, llama_model *model, const std::string &prompt, int maxTokens)
-{
-    // Tokenize the prompt
-    std::vector<llama_token> tokens = llama_tokenize(ctx, prompt, true);
-
-    // Create a batch for decoding
-    llama_batch batch = llama_batch_init(512, 0, 1);
-
-    // Evaluate the initial prompt
-    for (size_t i = 0; i < tokens.size(); i++)
-    {
-        llama_batch_add(batch, tokens[i], i, {0}, false);
-    }
-    batch.logits[batch.n_tokens - 1] = true;
-    llama_decode(ctx, batch);
-
-    // Main generation loop
-    int curLen = batch.n_tokens;
-    while (curLen <= maxTokens)
-    {
-        // Sample the next token
-        auto logits = llama_get_logits_ith(ctx, batch.n_tokens - 1);
-        auto nVocab = llama_n_vocab(model);
-        std::vector<llama_token_data> candidates;
-        candidates.reserve(nVocab);
-        for (llama_token tokenId = 0; tokenId < nVocab; tokenId++)
-        {
-            candidates.emplace_back(llama_token_data{tokenId, logits[tokenId], 0.0f});
-        }
-        llama_token_data_array candidatesArray = {candidates.data(), candidates.size(), false};
-        auto newTokenId = llama_sample_token_greedy(ctx, &candidatesArray);
-
-        // Check for end of stream
-        if (newTokenId == llama_token_eos(model) || curLen == maxTokens)
-        {
-            break;
-        }
-
-        // Append the new token to the tokens vector
-        tokens.push_back(newTokenId);
-
-        // Prepare the next batch
-        llama_batch_clear(batch);
-        llama_batch_add(batch, newTokenId, curLen, {0}, true);
-        curLen++;
-
-        // Evaluate the current batch
-        llama_decode(ctx, batch);
-    }
-
-    // Convert tokens to string
-    std::string generatedText;
-    for (auto id : tokens)
-    {
-        generatedText += llama_token_to_piece(ctx, id);
-    }
-
-    // Clean up
-    llama_batch_free(batch);
-
-    return generatedText;
 }
 
 int main(int argc, char **argv)
@@ -127,24 +66,7 @@ int main(int argc, char **argv)
 
     // Initialize the LLaMA backend and model
     llama_backend_init();
-    llama_model_params modelParams = llama_model_default_params();
-    llama_model *model = llama_load_model_from_file(params.model.c_str(), modelParams);
-
-    if (model == NULL)
-    {
-        fprintf(stderr, "%s: error: unable to load model\n", __func__);
-        return 1;
-    }
-
-    // Create LLaMA context
-    llama_context_params ctxParams = llama_context_default_params();
-    ctxParams.n_ctx = 2048;
-    llama_context *ctx = llama_new_context_with_model(model, ctxParams);
-    if (ctx == NULL)
-    {
-        fprintf(stderr, "%s: error: failed to create the llama_context\n", __func__);
-        return 1;
-    }
+    InferenceEngine engine = InferenceEngine(params.model);
 
     if (result.count("interactive"))
     {
@@ -171,14 +93,16 @@ int main(int argc, char **argv)
             }
             else
             {
-                std::cout << generateText(ctx, model, input, maxTokens) << std::endl;
+                auto output = engine.run(input);
+                std::cout << output << std::endl;
             }
         }
     }
     else if (result.count("text"))
     {
         std::string text_input = result["text"].as<std::string>();
-        std::cout << generateText(ctx, model, text_input, maxTokens) << std::endl;
+        auto output = engine.run(text_input);
+        std::cout << output << std::endl;
     }
     else if (result.count("base64"))
     {
@@ -194,9 +118,6 @@ int main(int argc, char **argv)
         std::cout << "Please provide either --text or --base64 input" << std::endl;
         return 1;
     }
-
-    llama_free(ctx);
-    llama_free_model(model);
     llama_backend_free();
 
     return 0;
