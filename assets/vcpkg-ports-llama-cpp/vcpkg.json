@@ -1,0 +1,18 @@
+{
+  "name": "llama-cpp",
+  "version-string": "b2608",
+  "description": "Port of Facebook's LLaMA model in C/C++ ",
+  "license": "MIT",
+  "dependencies": [
+    {
+      "name": "vcpkg-cmake",
+      "host": true,
+      "default-features": false
+    },
+    {
+      "name": "vcpkg-cmake-config",
+      "host": true,
+      "default-features": false
+    }
+  ]
+}
